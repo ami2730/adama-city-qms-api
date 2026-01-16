@@ -12,4 +12,13 @@ class Service extends Model
         return $this->belongsTo(Branch::class);
     }
 }
+public function tickets()
+{
+    return $this->hasMany(Ticket::class);
+}
+
+public function counters()
+{
+    return $this->hasMany(Counter::class);
+}
 
