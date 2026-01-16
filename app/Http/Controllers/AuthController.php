@@ -144,4 +144,121 @@ class AuthController extends Controller
             'token_type'  => 'Bearer',
         ]);
     }
+        /**
+     * Update user (Admin only)
+     * PUT /api/users/{id}
+     */
+    public function updateUser(Request $request, $id)
+    {
+        $authUser = $request->user();
+
+        // 🔒 Admin only
+        if ($authUser->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $request->validate([
+            'name'     => 'sometimes|string|max:255',
+            'email'    => 'sometimes|email|unique:users,email,' . $user->id,
+            'password' => 'sometimes|min:6|confirmed',
+            'role'     => 'sometimes|in:admin,staff,customer',
+        ]);
+
+        $data = $request->only(['name', 'email', 'role']);
+
+        // Update password only if provided
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User updated successfully',
+            'user'    => $user,
+        ], 200);
+    }
+    /**
+     * Delete user (Admin only)
+     * DELETE /api/users/{id}
+     */
+    public function deleteUser(Request $request, $id)
+    {
+        $authUser = $request->user();
+
+        // 🔒 Admin only
+        if ($authUser->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        // Prevent admin deleting self
+        if ($authUser->id == $id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot delete your own account',
+            ], 400);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        // Delete tokens first
+        $user->tokens()->delete();
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User deleted successfully',
+        ], 200);
+    }
+
+        /**
+     * List all users (Admin only)
+     * GET /api/users
+     */
+    public function listUsers(Request $request)
+    {
+        $authUser = $request->user();
+
+        // 🔒 Only admin can access
+        if ($authUser->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $users = User::select('id', 'name', 'email', 'role', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'count'   => $users->count(),
+            'users'   => $users,
+        ], 200);
+    }
+
 }

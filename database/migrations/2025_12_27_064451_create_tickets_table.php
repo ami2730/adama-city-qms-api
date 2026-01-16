@@ -15,7 +15,7 @@ return new class extends Migration
     $table->id();
     $table->foreignId('branch_id')->constrained();
     $table->foreignId('service_id')->constrained();
-    $table->foreignId('fid')->nullable()->constrained();
+    $table->string('fid')->nullable();
     $table->string('number', 8);
     $table->foreignId('counter_id')->nullable()->constrained()->nullOnDelete();
     $table->enum('status', ['waiting','called','served','skipped'])->default('waiting');

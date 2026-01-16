@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\DB;
+use App\Models\Service;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use Illuminate\Http\Request;
@@ -60,16 +61,59 @@ class BranchController extends Controller
         return response()->json(['success'=>true,'branch'=>$branch]);
     }
 
-    public function destroy($id)
-    {
-        $branch = Branch::find($id);
 
-        if (!$branch) {
-            return response()->json(['success'=>false,'message'=>'Branch not found'],404);
+public function destroy($id)
+{
+    $branch = Branch::find($id);
+
+    if (!$branch) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Branch not found'
+        ], 404);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        // 1️⃣ get all services under this branch
+        $services = Service::where('branch_id', $branch->id)->get();
+
+        foreach ($services as $service) {
+
+            // 2️⃣ delete tickets of the service
+            DB::table('tickets')
+                ->where('service_id', $service->id)
+                ->delete();
+
+            // 3️⃣ delete counters of the service
+            DB::table('counters')
+                ->where('service_id', $service->id)
+                ->delete();
         }
 
+        // 4️⃣ delete services of the branch
+        Service::where('branch_id', $branch->id)->delete();
+
+        // 5️⃣ delete branch
         $branch->delete();
 
-        return response()->json(['success'=>true,'message'=>'Branch deleted']);
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Branch, services, tickets, and counters deleted successfully'
+        ]);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete branch',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
+
 }

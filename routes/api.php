@@ -7,30 +7,38 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CounterController;
 use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\QueueController;
 
-
-Route::post('/register', [App\Http\Controllers\AuthController::class, 'register']);
-Route::post('/login', [App\Http\Controllers\AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
 // Public Routes (Accessible by Kiosk)
+Route::post('/queue', [TicketController::class, 'getQueue']);
 Route::get('/branches', [BranchController::class, 'index']);
-Route::get('/services', [ServiceController::class, 'index']); 
-Route::get('/branches/{id}', [BranchController::class, 'show']); // also useful for public
-Route::get('/services/{id}', [ServiceController::class, 'show']); // also useful for public
-Route::get('/tickets/{id}', [TicketController::class, 'show']);
-Route::post('/tickets', [TicketController::class, 'store']);
-
-Route::middleware(['auth:sanctum', 'role:staff'])->group(function () {
-    Route::post('/counter/call-next', [TicketController::class, 'callNext']); // call ticket
-    Route::post('/tickets/{ticket}/serve', [TicketController::class, 'serve']); // serve ticket
-    Route::post('/tickets/{ticket}/skip', [TicketController::class, 'skip']);   // skip ticket
-    Route::get('/tickets', [TicketController::class, 'index']);
+Route::get('/services', [ServiceController::class, 'index']);
+Route::get('/branches/{id}', [BranchController::class, 'show']);
+Route::get('/services/{id}', [ServiceController::class, 'show']);
+Route::get('/tickets/{number}', [TicketController::class, 'show']);
+Route::post('/tickets', [TicketController::class, 'store']); // Create ticket
+ Route::get('/tickets', [TicketController::class, 'index']); 
+// Staff & Admin Routes
+Route::middleware(['auth:sanctum', 'role:staff,admin'])->group(function () {
+    Route::post('/tickets/call-next', [TicketController::class, 'callNext']);
+    Route::post('/tickets/{ticket}/serve', [TicketController::class, 'serve']);
+    Route::post('/tickets/{ticket}/skip', [TicketController::class, 'skip']);
+ 
 });
 
+// Authenticated Routes (All Roles)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/me',          [AuthController::class, 'me']);
+    Route::post('/logout',     [AuthController::class, 'logout']);
+    Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+    Route::post('/refresh',    [AuthController::class, 'refresh']);
+});
+
+// Admin Only Routes
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-    
-    // Branch CRUD (Protected)
+    // Branch CRUD
     Route::post('/branches', [BranchController::class, 'store']);
     Route::put('/branches/{id}', [BranchController::class, 'update']);
     Route::patch('/branches/{id}', [BranchController::class, 'update']);
@@ -44,20 +52,14 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::patch('/counters/{id}', [CounterController::class, 'update']);
     Route::delete('/counters/{id}', [CounterController::class, 'destroy']);
 
-    // Service CRUD (Protected)
+    // User CRUD
+    Route::put('/users/{id}', [AuthController::class, 'updateUser']);
+    Route::delete('/users/{id}', [AuthController::class, 'deleteUser']);
+    Route::get('/users', [AuthController::class, 'listUsers']);
+
+    // Service CRUD
     Route::post('/services', [ServiceController::class, 'store']);
     Route::put('/services/{id}', [ServiceController::class, 'update']);
     Route::patch('/services/{id}', [ServiceController::class, 'update']);
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
-    
-    // Ticket CRUD
-    Route::post('/counter/call-next', [TicketController::class, 'callNext']); // call ticket
-    Route::post('/tickets/{ticket}/serve', [TicketController::class, 'serve']); // serve ticket
-    Route::post('/tickets/{ticket}/skip', [TicketController::class, 'skip']);   // skip ticket
-    Route::get('/tickets', [TicketController::class, 'index']);
-    //auth
-    Route::get('/me',          [AuthController::class, 'me']);
-    Route::post('/logout',     [AuthController::class, 'logout']);
-    Route::post('/logout-all', [AuthController::class, 'logoutAll']);
-    Route::post('/refresh',    [AuthController::class, 'refresh']);
 });

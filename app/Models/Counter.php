@@ -9,26 +9,32 @@ class Counter extends Model
 {
     use HasFactory;
 
-    // Add user_id to fillable
     protected $fillable = [
         'name',
         'branch_id',
-        'fid',
+        'user_id',
+        'service_id',
     ];
 
-    // Relationship: Counter belongs to a Branch
+    // Counter belongs to a branch
     public function branch()
     {
         return $this->belongsTo(Branch::class);
     }
 
-    // Counter belongs to a User
-    public function user()
+    // Counter belongs to a staff user
+  public function user()
+{
+    return $this->belongsTo(\App\Models\User::class);
+}
+
+    // Counter serves ONE service
+    public function service()
     {
-        return $this->belongsTo(\App\Models\User::class);
+        return $this->belongsTo(Service::class);
     }
 
-    // Optional: tickets assigned to this counter
+    // Tickets handled by this counter
     public function tickets()
     {
         return $this->hasMany(Ticket::class);

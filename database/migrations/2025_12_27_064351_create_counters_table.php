@@ -12,13 +12,32 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('counters', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
-    $table->foreignId('fid')->constrained()->cascadeOnDelete();
-    $table->string('name');
-    $table->timestamps();
-});
+            $table->id();
 
+            // Counter belongs to a branch
+            $table->foreignId('branch_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            // Counter serves a specific service
+            $table->foreignId('service_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            // Optional: staff assigned to this counter
+            $table->foreignId('user_id')
+                ->nullable() // allow creating counter without staff
+                ->constrained()
+                ->nullOnDelete();
+
+            // Counter display name
+            $table->string('name'); // e.g. "Counter 1"
+
+            // Counter status
+            $table->enum('status', ['active', 'inactive'])->default('active');
+
+            $table->timestamps();
+        });
     }
 
     /**
