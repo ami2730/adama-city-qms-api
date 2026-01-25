@@ -14,7 +14,7 @@ class TicketController extends Controller
     public function index()
     {
         $tickets = Ticket::with(['branch', 'service', 'user', 'counter'])
-            ->orderByDesc('created_at')
+            ->orderByDesc('updated_at')
             ->get();
 
         return response()->json([
@@ -34,8 +34,8 @@ class TicketController extends Controller
         $queue = Ticket::with(['user'])
             ->where('branch_id', $request->branch_id)
             ->where('service_id', $request->service_id)
-            ->whereIn('status', ['waiting', 'called'])
-            ->orderBy('created_at')
+            ->whereIn('status', ['waiting', 'skipped','called'])
+            ->orderBy('updated_at')
             ->get();
 
         return response()->json([
@@ -51,6 +51,7 @@ class TicketController extends Controller
             'branch_id'  => 'required|exists:branches,id',
             'service_id' => 'required|exists:services,id',
             'fid'        => 'required',
+            
         ]);
 
         $ticket = Ticket::create([
@@ -62,12 +63,13 @@ class TicketController extends Controller
                 $request->service_id
             ),
             'status'     => 'waiting',
+            'updated_at' => now(),
         ]);
 
         $ticketsAhead = Ticket::where('branch_id', $ticket->branch_id)
             ->where('service_id', $ticket->service_id)
-            ->where('status', 'waiting')
-            ->where('created_at', '<', $ticket->created_at)
+            ->whereIn('status', ['waiting','skipped'])
+            ->where('updated_at', '<', $ticket->updated_at)
             ->count();
 
         return response()->json([
@@ -89,8 +91,8 @@ class TicketController extends Controller
     if ($ticket->status === 'waiting') {
         $ticketsAhead = Ticket::where('branch_id', $ticket->branch_id)
             ->where('service_id', $ticket->service_id)
-            ->where('status', 'waiting')
-            ->where('created_at', '<', $ticket->created_at)
+            ->whereIn('status', ['waiting','skipped'])
+            ->where('updated_at', '<', $ticket->updated_at)
             ->count();
     }
 
@@ -127,8 +129,8 @@ if (!in_array($user->role, ['staff','admin'])) {
     // Find the next waiting ticket for this counter's branch and service
     $ticket = Ticket::where('branch_id', $counter->branch_id)
         ->where('service_id', $counter->service_id)
-        ->where('status', 'waiting')
-        ->orderBy('created_at')
+        ->whereIn('status', ['waiting','skipped'])
+        ->orderBy('updated_at')
         ->lockForUpdate()
         ->first();
 
@@ -144,6 +146,7 @@ if (!in_array($user->role, ['staff','admin'])) {
         'status'     => 'called',
         'counter_id' => $counter->id,
         'called_at'  => now(),
+        'updated_at' => now(),
     ]);
 
     return response()->json([
@@ -161,6 +164,7 @@ if (!in_array($user->role, ['staff','admin'])) {
 
         $ticket->update([
             'status'    => 'served',
+            'updated_at' => now(),
             'served_at' => now(),
         ]);
 
@@ -173,12 +177,13 @@ if (!in_array($user->role, ['staff','admin'])) {
     // 📌 SKIP TICKET
     public function skip(Ticket $ticket)
     {
-        abort_if(!in_array($ticket->status, ['waiting', 'called']),
+        abort_if(!in_array($ticket->status, ['waiting', 'called','skipped']),
             400, 'Ticket cannot be skipped'
         );
 
         $ticket->update([
-            'status' => 'skipped'
+            'status' => 'skipped',
+            'updated_at' => now(),
         ]);
 
         return response()->json([
@@ -200,7 +205,7 @@ if (!in_array($user->role, ['staff','admin'])) {
         } while (
             Ticket::where('branch_id', $branchId)
                 ->where('service_id', $serviceId)
-                ->whereDate('created_at', Carbon::today())
+                ->whereDate('updated_at', Carbon::today())
                 ->where('number', $number)
                 ->exists()
         );

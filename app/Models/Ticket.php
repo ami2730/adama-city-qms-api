@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class Ticket extends Model
 {
     use HasFactory;
+    
+    const CREATED_AT = null;
 
     protected $fillable = [
         'branch_id',
@@ -17,12 +19,14 @@ class Ticket extends Model
         'counter_id',
         'status',
         'called_at',
-        'served_at'
+        'served_at',
+        'updated_at'
     ];
 
     protected $casts = [
         'called_at' => 'datetime',
         'served_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // Optional: default values

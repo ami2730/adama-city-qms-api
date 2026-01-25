@@ -23,7 +23,7 @@ return new class extends Migration
     $table->enum('status', ['waiting','called','served','skipped'])->default('waiting');
     $table->timestamp('called_at')->nullable();
     $table->timestamp('served_at')->nullable();
-    $table->timestamps();
+    $table->timestamp('updated_at')->nullable();
 });
 
     }

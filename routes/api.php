@@ -25,7 +25,8 @@ Route::middleware(['auth:sanctum', 'role:staff,admin'])->group(function () {
     Route::post('/tickets/call-next', [TicketController::class, 'callNext']);
     Route::post('/tickets/{ticket}/serve', [TicketController::class, 'serve']);
     Route::post('/tickets/{ticket}/skip', [TicketController::class, 'skip']);
- 
+    Route::get('/counters', [CounterController::class, 'index']);
+   
 });
 
 // Authenticated Routes (All Roles)
@@ -37,7 +38,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 // Admin Only Routes
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin,staff'])->group(function () {
     // Branch CRUD
     Route::post('/branches', [BranchController::class, 'store']);
     Route::put('/branches/{id}', [BranchController::class, 'update']);
@@ -45,7 +46,6 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete('/branches/{id}', [BranchController::class, 'destroy']);
 
     // Counter CRUD
-    Route::get('/counters', [CounterController::class, 'index']);
     Route::post('/counters', [CounterController::class, 'store']);
     Route::get('/counters/{id}', [CounterController::class, 'show']);
     Route::put('/counters/{id}', [CounterController::class, 'update']);
