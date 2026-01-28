@@ -55,29 +55,29 @@ In order to ensure that the Laravel community is welcoming to all, please review
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
 # Run this project on locally
-php -v
-composer -V
-node -v
-npm -v
+ - php -v
+ - composer -V
+ - node -v
+ - npm -v
 
-git clone https://github.com/ami2730/adama-city-qms-api.git
-cd adama-city-qms-api
+ - git clone https://github.com/ami2730/adama-city-qms-api.git
+ - cd adama-city-qms-api
 
-composer install
-cp .env.example .env
+ - composer install
+ - cp .env.example .env
 
-php artisan key:generate
+ - php artisan key:generate
 
 ## Edit .env file and set your database credentials
- DB_CONNECTION=postgres
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=your_database
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
+ - DB_CONNECTION=postgres
+ - DB_HOST=127.0.0.1
+ - DB_PORT=3306
+ - DB_DATABASE=your_database
+ - DB_USERNAME=your_username
+ - DB_PASSWORD=your_password
 
-php artisan migrate
-php artisan serve
+ - php artisan migrate
+ - php artisan serve
 
 
 
