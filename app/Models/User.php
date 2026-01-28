@@ -83,6 +83,6 @@ class User extends Authenticatable
     // 🔹 Add this method
     public function counter()
     {
-        return $this->hasOne(\App\Models\Counter::class, 'user_id', 'id');
+        return $this->hasOne(\App\Models\Counter::class);
     }
 }

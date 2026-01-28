@@ -9,6 +9,10 @@ use Illuminate\Http\Request;
 
 class BranchController extends Controller
 {
+    public function __construct()
+{
+    $this->middleware(['auth:sanctum','role:super_admin']);
+}
     public function index()
     {
         return response()->json([

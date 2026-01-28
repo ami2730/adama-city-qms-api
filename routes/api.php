@@ -37,7 +37,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/refresh',    [AuthController::class, 'refresh']);
 });
 
-// Admin Only Routes
+
 Route::middleware(['auth:sanctum', 'role:admin,staff'])->group(function () {
     // Branch CRUD
     Route::post('/branches', [BranchController::class, 'store']);

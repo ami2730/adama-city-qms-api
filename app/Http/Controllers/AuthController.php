@@ -14,72 +14,79 @@ class AuthController extends Controller
     /**
      * Register (Customer only)
      */
-    public function register(Request $request)
+ public function register(Request $request)
     {
-        try {
-            $request->validate([
-                'name'     => 'required|string|max:255',
-                'email'    => 'required|email|unique:users,email',
-                'password' => 'required|min:6|confirmed',
-                'role'     => 'nullable|in:admin,staff,customer',
-            ]);
-        } catch (ValidationException $e) {
-            if (isset($e->errors()['email'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Email already registered',
-                ], 409);
-            }
-
-            return response()->json([
-                'success' => false,
-                'errors'  => $e->errors(),
-            ], 422);
-        }
-
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'role'     => $request->role ?? 'customer',
+        $request->validate([
+            'name'=>'required',
+            'email'=>'required|email|unique:users',
+            'password'=>'required|min:6|confirmed'
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Registration successful',
-            'user'    => $user,
-        ], 201);
+        $user = User::create([
+            'name'=>$request->name,
+            'email'=>$request->email,
+            'password'=>Hash::make($request->password),
+            'role'=>'customer'
+        ]);
+
+        return response()->json(['success'=>true,'user'=>$user],201);
     }
 
     /**
      * Login (Admin / Staff / Customer)
      */
-    public function login(Request $request)
-{
-    $request->validate([
-        'email'    => 'required|email',
-        'password' => 'required|string',
-    ]);
+       public function login(Request $request)
+    {
+        $request->validate([
+            'email'=>'required|email',
+            'password'=>'required'
+        ]);
 
-    $user = User::where('email', $request->email)->first();
+        $user = User::where('email',$request->email)->first();
 
-    // 🔴 WRONG PASSWORD → 401
-    if (!$user || !Hash::check($request->password, $user->password)) {
+        if(!$user || !Hash::check($request->password,$user->password)){
+            return response()->json(['success'=>false,'message'=>'Invalid credentials'],401);
+        }
+
         return response()->json([
-            'success' => false,
-            'message' => 'Invalid email or password',
-        ], 401);
+            'success'=>true,
+            'token'=>$user->createToken('auth')->plainTextToken,
+            'user'=>$user
+        ]);
     }
+     // ✅ SUPER ADMIN + ADMIN CREATE USERS
+    public function createUser(Request $request)
+    {
+        $auth = $request->user();
 
-    // ✅ CORRECT PASSWORD
-    $token = $user->createToken('auth-token')->plainTextToken;
+        if(!in_array($auth->role,['super_admin','admin'])){
+            abort(403);
+        }
 
-    return response()->json([
-        'success' => true,
-        'user'    => $user,
-        'access_token' => $token,
-    ], 200);
-}
+        $request->validate([
+            'name'=>'required',
+            'email'=>'required|email|unique:users',
+            'password'=>'required|min:6',
+            'role'=>'required|in:admin,staff',
+            'branch_id'=>'required|exists:branches,id'
+        ]);
+
+        if($auth->role === 'admin'){
+            if($request->role !== 'staff' || $request->branch_id != $auth->branch_id){
+                abort(403);
+            }
+        }
+
+        $user = User::create([
+            'name'=>$request->name,
+            'email'=>$request->email,
+            'password'=>Hash::make($request->password),
+            'role'=>$request->role,
+            'branch_id'=>$request->branch_id
+        ]);
+
+        return response()->json(['success'=>true,'user'=>$user],201);
+    }
     /**
      * Authenticated user
      */
@@ -153,11 +160,16 @@ class AuthController extends Controller
         $authUser = $request->user();
 
         // 🔒 Admin only
-        if ($authUser->role !== 'admin') {
+        if ($authUser->role !== ['admin','super_admin']) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
             ], 403);
+        }
+         if($auth->role === 'admin'){
+            if($user->branch_id !== $auth->branch_id || $user->role !== 'staff'){
+                abort(403);
+            }
         }
 
         $user = User::find($id);
@@ -200,13 +212,17 @@ class AuthController extends Controller
         $authUser = $request->user();
 
         // 🔒 Admin only
-        if ($authUser->role !== 'admin') {
+        if ($authUser->role !== ['admin','super_admin']) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
             ], 403);
         }
-
+       if($auth->role === 'admin'){
+            if($user->branch_id !== $auth->branch_id || $user->role !== 'staff'){
+                abort(403);
+            }
+        }
         // Prevent admin deleting self
         if ($authUser->id == $id) {
             return response()->json([
@@ -214,9 +230,9 @@ class AuthController extends Controller
                 'message' => 'You cannot delete your own account',
             ], 400);
         }
-
+   
         $user = User::find($id);
-
+        
         if (!$user) {
             return response()->json([
                 'success' => false,
@@ -241,14 +257,17 @@ class AuthController extends Controller
     public function listUsers(Request $request)
     {
         $authUser = $request->user();
-
+  
         // 🔒 Only admin can access
-        if ($authUser->role !== 'admin') {
+        if ($authUser->role !== ["admin","super_admin"]) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
             ], 403);
         }
+         $users = User::when($authUser->role === 'admin', function ($q) use ($authUser) {
+            $q->where('branch_id',$authUser->branch_id);
+        })->get();
 
         $users = User::select('id', 'name', 'email', 'role', 'created_at')
             ->orderBy('created_at', 'desc')
