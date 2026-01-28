@@ -54,7 +54,7 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## run this project on locally
+# run this project on locally
 php -v
 composer -V
 node -v
@@ -68,7 +68,7 @@ cp .env.example .env
 
 php artisan key:generate
 
-# Edit .env file and set your database credentials
+## Edit .env file and set your database credentials
  DB_CONNECTION=postgres
 DB_HOST=127.0.0.1
 DB_PORT=3306
