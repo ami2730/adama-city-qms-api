@@ -75,9 +75,9 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
  - DB_DATABASE=your_database
  - DB_USERNAME=your_username
  - DB_PASSWORD=your_password
-
- - php artisan migrate
- - php artisan serve
+## migrate and run
+- php artisan migrate
+- php artisan serve
 
 
 
