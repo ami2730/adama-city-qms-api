@@ -4,11 +4,26 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Represents a service counter in a branch.
+ *
+ * A counter is typically assigned to:
+ * - one branch
+ * - one staff member (user)
+ * - one service type
+ */
 class Counter extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<string>
+     */
     protected $fillable = [
         'name',
         'branch_id',
@@ -16,26 +31,34 @@ class Counter extends Model
         'service_id',
     ];
 
-    // Counter belongs to a branch
-    public function branch()
+    /**
+     * Get the branch that owns this counter.
+     */
+    public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
     }
 
-    // Counter belongs to a staff user
-  public function user()
-{
-    return $this->belongsTo(\App\Models\User::class);
-}
+    /**
+     * Get the staff member (user) assigned to this counter.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
-    // Counter serves ONE service
-    public function service()
+    /**
+     * Get the service that this counter is serving.
+     */
+    public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
     }
 
-    // Tickets handled by this counter
-    public function tickets()
+    /**
+     * Get all tickets that have been processed / are assigned to this counter.
+     */
+    public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
     }
