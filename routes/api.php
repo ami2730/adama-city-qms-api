@@ -19,26 +19,26 @@ Route::get('/branches/{id}', [BranchController::class, 'show']);
 Route::get('/services/{id}', [ServiceController::class, 'show']);
 Route::get('/tickets/{number}', [TicketController::class, 'show']);
 Route::post('/tickets', [TicketController::class, 'store']); // Create ticket
- Route::get('/tickets', [TicketController::class, 'index']); 
 // Staff & Admin Routes
-Route::middleware(['auth:sanctum', 'role:staff,admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:staff,admin,super_admin'])->group(function () {
     Route::post('/tickets/call-next', [TicketController::class, 'callNext']);
     Route::post('/tickets/{ticket}/serve', [TicketController::class, 'serve']);
     Route::post('/tickets/{ticket}/skip', [TicketController::class, 'skip']);
     Route::get('/counters', [CounterController::class, 'index']);
-   
+    Route::get('/tickets', [TicketController::class, 'index']);
 });
 
 // Authenticated Routes (All Roles)
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/me',          [AuthController::class, 'me']);
+    Route::put('/me',          [AuthController::class, 'updateProfile']);
     Route::post('/logout',     [AuthController::class, 'logout']);
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
     Route::post('/refresh',    [AuthController::class, 'refresh']);
 });
 
 
-Route::middleware(['auth:sanctum', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin,super_admin'])->group(function () {
     // Branch CRUD
     Route::post('/branches', [BranchController::class, 'store']);
     Route::put('/branches/{id}', [BranchController::class, 'update']);
@@ -53,6 +53,7 @@ Route::middleware(['auth:sanctum', 'role:admin,staff'])->group(function () {
     Route::delete('/counters/{id}', [CounterController::class, 'destroy']);
 
     // User CRUD
+    Route::post('/users', [AuthController::class, 'createUser']);
     Route::put('/users/{id}', [AuthController::class, 'updateUser']);
     Route::delete('/users/{id}', [AuthController::class, 'deleteUser']);
     Route::get('/users', [AuthController::class, 'listUsers']);

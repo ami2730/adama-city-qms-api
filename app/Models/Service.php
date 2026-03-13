@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Service extends Model
 {
-    protected $fillable = ['branch_id', 'name', 'prefix'];
+    protected $fillable = ['branch_id', 'name', 'prefix', 'avg_time'];
 
     public function branch()
     {

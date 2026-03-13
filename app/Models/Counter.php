@@ -14,6 +14,7 @@ class Counter extends Model
         'branch_id',
         'user_id',
         'service_id',
+        'status',
     ];
 
     // Counter belongs to a branch

@@ -33,12 +33,10 @@ class User extends Authenticatable
     protected $keyType = 'int';
 
     /**
-     * Bootstrap the model and its traits.
+     * The "booted" method of the model.
      */
-    protected static function boot()
+    protected static function booted()
     {
-        parent::boot();
-
         static::creating(function ($model) {
             if (empty($model->id)) {
                 $model->id = self::generateUniqueId();
@@ -65,6 +63,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'branch_id',
     ];
 
     protected $hidden = [

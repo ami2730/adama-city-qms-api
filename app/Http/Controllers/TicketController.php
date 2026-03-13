@@ -11,9 +11,21 @@ use Carbon\Carbon;
 class TicketController extends Controller
 {
     // 📌 ADMIN: LIST ALL TICKETS
-    public function index()
+    public function index(Request $request)
     {
+        $user = $request->user();
+
         $tickets = Ticket::with(['branch', 'service', 'user', 'counter'])
+            ->when($user && in_array($user->role, ['admin', 'staff']), function ($q) use ($user) {
+                $q->where('branch_id', $user->branch_id);
+            })
+            // Allow optional filtering by branch (if not restricted) and service
+            ->when($request->branch_id, function ($q, $branchId) {
+                $q->where('branch_id', $branchId);
+            })
+            ->when($request->service_id, function ($q, $serviceId) {
+                $q->where('service_id', $serviceId);
+            })
             ->orderByDesc('updated_at')
             ->get();
 
@@ -31,7 +43,7 @@ class TicketController extends Controller
             'service_id' => 'required|exists:services,id',
         ]);
 
-        $queue = Ticket::with(['user'])
+        $queue = Ticket::with(['user', 'counter'])
             ->where('branch_id', $request->branch_id)
             ->where('service_id', $request->service_id)
             ->whereIn('status', ['waiting', 'skipped','called'])
@@ -158,9 +170,22 @@ if (!in_array($user->role, ['staff','admin'])) {
 
 
     // 📌 SERVE TICKET
-    public function serve(Ticket $ticket)
+    public function serve(Request $request, Ticket $ticket)
     {
-        abort_if($ticket->status !== 'called', 400, 'Ticket not called');
+        $user = $request->user();
+        $counter = $user->counter;
+
+        if ($ticket->status !== 'called') {
+            return response()->json(['success' => false, 'message' => 'Ticket not called'], 400);
+        }
+
+        if ($user->role === 'staff' && (!$counter || $ticket->counter_id != $counter->id)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized: You can only serve tickets at your assigned counter'], 403);
+        }
+
+        if ($user->role === 'admin' && $ticket->branch_id != $user->branch_id) {
+             return response()->json(['success' => false, 'message' => 'Unauthorized: You can only serve tickets in your own branch'], 403);
+        }
 
         $ticket->update([
             'status'    => 'served',
@@ -175,11 +200,27 @@ if (!in_array($user->role, ['staff','admin'])) {
     }
 
     // 📌 SKIP TICKET
-    public function skip(Ticket $ticket)
+    public function skip(Request $request, Ticket $ticket)
     {
-        abort_if(!in_array($ticket->status, ['waiting', 'called','skipped']),
-            400, 'Ticket cannot be skipped'
-        );
+        $user = $request->user();
+        $counter = $user->counter;
+
+        if (!in_array($ticket->status, ['waiting', 'called', 'skipped'])) {
+             return response()->json(['success' => false, 'message' => 'Ticket cannot be skipped'], 400);
+        }
+
+        if ($user->role === 'staff') {
+            if ($ticket->status === 'called' && (!$counter || $ticket->counter_id != $counter->id)) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized: You can only skip tickets called at your assigned counter'], 403);
+            }
+            if ($ticket->status === 'waiting' && $ticket->branch_id != $user->branch_id) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized: You can only skip tickets in your own branch'], 403);
+            }
+        }
+
+        if ($user->role === 'admin' && $ticket->branch_id != $user->branch_id) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized: You can only skip tickets in your own branch'], 403);
+        }
 
         $ticket->update([
             'status' => 'skipped',

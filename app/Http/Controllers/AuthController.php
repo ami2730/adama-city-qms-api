@@ -19,14 +19,15 @@ class AuthController extends Controller
         $request->validate([
             'name'=>'required',
             'email'=>'required|email|unique:users',
-            'password'=>'required|min:6|confirmed'
+            'password'=>'required|min:6|confirmed',
+            'role'=>'required|in:admin,staff'
         ]);
 
         $user = User::create([
             'name'=>$request->name,
             'email'=>$request->email,
             'password'=>Hash::make($request->password),
-            'role'=>'customer'
+            'role'=>$request->role
         ]);
 
         return response()->json(['success'=>true,'user'=>$user],201);
@@ -50,7 +51,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success'=>true,
-            'token'=>$user->createToken('auth')->plainTextToken,
+            'access_token'=>$user->createToken('auth')->plainTextToken,
             'user'=>$user
         ]);
     }
@@ -71,10 +72,8 @@ class AuthController extends Controller
             'branch_id'=>'required|exists:branches,id'
         ]);
 
-        if($auth->role === 'admin'){
-            if($request->role !== 'staff' || $request->branch_id != $auth->branch_id){
-                abort(403);
-            }
+        if($auth->role === 'admin' && ($request->role !== 'staff' || $request->branch_id != $auth->branch_id)){
+            abort(403, 'Admins can only create staff in their own branch.');
         }
 
         $user = User::create([
@@ -95,6 +94,35 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'user'    => $request->user(),
+        ]);
+    }
+
+    /**
+     * Update own profile
+     * PUT /api/me
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email,' . $user->id,
+            'password' => 'nullable|min:6|confirmed',
+        ]);
+
+        $data = $request->only(['name', 'email']);
+
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'user'    => $user,
         ]);
     }
 
@@ -160,18 +188,6 @@ class AuthController extends Controller
         $authUser = $request->user();
 
         // 🔒 Admin only
-        if ($authUser->role !== ['admin','super_admin']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized',
-            ], 403);
-        }
-         if($auth->role === 'admin'){
-            if($user->branch_id !== $auth->branch_id || $user->role !== 'staff'){
-                abort(403);
-            }
-        }
-
         $user = User::find($id);
 
         if (!$user) {
@@ -181,14 +197,33 @@ class AuthController extends Controller
             ], 404);
         }
 
+        // 🔒 Scoping for Admin
+        if($authUser->role === 'admin'){
+            // If NOT updating self, must be staff in same branch
+            if($authUser->id != $user->id){
+                if($user->branch_id != $authUser->branch_id || $user->role !== 'staff'){
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized: You can only update staff in your branch',
+                    ], 403);
+                }
+            }
+        }
+
         $request->validate([
-            'name'     => 'sometimes|string|max:255',
-            'email'    => 'sometimes|email|unique:users,email,' . $user->id,
-            'password' => 'sometimes|min:6|confirmed',
-            'role'     => 'sometimes|in:admin,staff,customer',
+            'name'      => 'sometimes|string|max:255',
+            'email'     => 'sometimes|email|unique:users,email,' . $user->id,
+            'password'  => 'sometimes|min:6|confirmed',
+            'role'      => 'sometimes|in:super_admin,admin,staff,customer',
+            'branch_id' => 'sometimes|nullable|exists:branches,id',
         ]);
 
-        $data = $request->only(['name', 'email', 'role']);
+        // If admin is updating themselves, restrict role and branch changes
+        if ($authUser->role === 'admin' && $authUser->id == $user->id) {
+            $data = $request->only(['name', 'email']);
+        } else {
+            $data = $request->only(['name', 'email', 'role', 'branch_id']);
+        }
 
         // Update password only if provided
         if ($request->filled('password')) {
@@ -212,25 +247,14 @@ class AuthController extends Controller
         $authUser = $request->user();
 
         // 🔒 Admin only
-        if ($authUser->role !== ['admin','super_admin']) {
+        // 🔒 Scoping check
+        if (!in_array($authUser->role, ['admin', 'super_admin'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
             ], 403);
         }
-       if($auth->role === 'admin'){
-            if($user->branch_id !== $auth->branch_id || $user->role !== 'staff'){
-                abort(403);
-            }
-        }
-        // Prevent admin deleting self
-        if ($authUser->id == $id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You cannot delete your own account',
-            ], 400);
-        }
-   
+
         $user = User::find($id);
         
         if (!$user) {
@@ -238,6 +262,23 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'User not found',
             ], 404);
+        }
+
+        if($authUser->role === 'admin'){
+            if($user->branch_id != $authUser->branch_id || $user->role !== 'staff'){
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: You can only delete staff in your branch',
+                ], 403);
+            }
+        }
+
+        // Prevent admin deleting self
+        if ($authUser->id == $id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot delete your own account',
+            ], 400);
         }
 
         // Delete tokens first
@@ -259,17 +300,18 @@ class AuthController extends Controller
         $authUser = $request->user();
   
         // 🔒 Only admin can access
-        if ($authUser->role !== ["admin","super_admin"]) {
+        // 🔒 Only admin can access
+        if (!in_array($authUser->role, ["admin", "super_admin"])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
             ], 403);
         }
-         $users = User::when($authUser->role === 'admin', function ($q) use ($authUser) {
-            $q->where('branch_id',$authUser->branch_id);
-        })->get();
 
-        $users = User::select('id', 'name', 'email', 'role', 'created_at')
+        $users = User::select('id', 'name', 'email', 'role', 'branch_id', 'created_at', 'updated_at')
+            ->when($authUser->role === 'admin', function ($q) use ($authUser) {
+                $q->where('branch_id', $authUser->branch_id);
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 
